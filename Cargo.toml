@@ -1,0 +1,10 @@
+[package]
+name = "yggdrasil"
+version = "0.1.0"
+authors = ["Sam Cutler <sam92cutler@hotmail.co.uk>"]
+
+[dependencies]
+docopt = "0.7.0"
+docopt_macros = "0.7.0"
+rustc-serialize = "0.3.22"
+serial = "0.3.4"
