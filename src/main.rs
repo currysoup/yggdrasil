@@ -6,6 +6,7 @@ extern crate serial;
 extern crate rustc_serialize;
 
 use std::io::Read;
+use std::ptr::copy_nonoverlapping;
 use std::str;
 use std::time::Duration;
 
@@ -62,13 +63,19 @@ fn main() {
     port.configure(&SETTINGS);
     port.set_timeout(Duration::from_secs(5));
 
-    let mut buf = vec![0; 4];
-
-    println!("Reading some bytes");
+    let mut buf = vec![0_u8; 4];
 
     loop {
         port.read(&mut buf[..]).unwrap();
-        let num = unsafe { std::mem::transmute::<[u8; 4], i32>(buf[0..4]) };
+
+        let mut num: i32 = 0;
+        unsafe {
+            copy_nonoverlapping(
+                buf.as_ptr(),
+                &mut num as *mut i32 as *mut u8,
+                4);
+        };
+
         println!("{:?}", num);
     }
 }
