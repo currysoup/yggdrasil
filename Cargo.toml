@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Sam Cutler <sam92cutler@hotmail.co.uk>"]
 
 [dependencies]
+byteorder = "1.0.0"
 docopt = "0.7.0"
 docopt_macros = "0.7.0"
 rustc-serialize = "0.3.22"
