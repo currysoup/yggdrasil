@@ -45,9 +45,10 @@ void loop() {
     if (Serial.available() >= 3) {
         int seq_number = Serial.read();
         int req_type = Serial.read();
+        int plant_id = Serial.read();
         switch (req_type) {
             case REQ_MOISTURE:
-            respond_moisture(seq_number, req_type);
+            respond_moisture(seq_number, plant_id);
             break;
 
             case REQ_TEMPERATURE:
