@@ -48,10 +48,7 @@ impl SerialResponse {
     // TODO: Make result type
     fn to_moisture_level(self) -> Option<MoistureLevel> {
         let id = PlantId(self.plant_id as u32);
-
-
         let mut rdr = Cursor::new(&self.buf[..]);
-
         let level = MoistureLevel::new(id, rdr.read_i16::<LittleEndian>().unwrap());
 
         Some(level)
