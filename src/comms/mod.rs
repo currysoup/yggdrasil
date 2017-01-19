@@ -12,7 +12,7 @@ enum RequestType {
 }
 
 #[derive(Debug)]
-pub struct PlantId(pub u32);
+pub struct PlantId(pub i16);
 
 #[derive(Debug)]
 pub struct MoistureLevel {

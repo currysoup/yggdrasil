@@ -1,10 +1,12 @@
 use std::ffi::OsString;
-use std::io::{Cursor, Read, Write};
+use std::io::{BufRead, Cursor, Read, Write};
 use std::mem;
 use std::str;
 use std::time::Duration;
 
+use bufstream::BufStream;
 use byteorder::{LittleEndian, ReadBytesExt};
+use rustc_serialize::json;
 use serial;
 use serial::prelude::*;
 
@@ -29,65 +31,53 @@ const RESPONSE_MAX_LEN: usize = 256;
 #[repr(packed)]
 #[derive(Clone)]
 struct SerialRequest {
-    seq_number: DeviceInt,
+    seq: DeviceInt,
     req_type: DeviceInt,
     plant_id: DeviceInt,
 }
 
 #[repr(packed)]
+#[derive(Debug, RustcDecodable)]
 struct SerialResponse {
-    /// The sequence number this is a response to
-    seq_number: DeviceInt,
+    seq: DeviceInt,
     plant_id: DeviceInt,
-    /// Length of the data segment
-    len: DeviceInt,
-    buf: [u8; RESPONSE_MAX_LEN],
+    text: String,
 }
 
 impl SerialResponse {
-    // TODO: Make result type
-    fn to_moisture_level(self) -> Option<MoistureLevel> {
-        let id = PlantId(self.plant_id as u32);
-        let mut rdr = Cursor::new(&self.buf[..]);
-        let level = MoistureLevel::new(id, rdr.read_i16::<LittleEndian>().unwrap());
-
-        Some(level)
+    fn to_moisture_level(self) -> MoistureLevel {
+        MoistureLevel {
+            plant_id: PlantId(self.plant_id),
+            level: i16::from_str_radix(&self.text, 10).unwrap(),
+        }
     }
 }
 
 pub struct SerialComms {
-    port: serial::SystemPort,
-    seq_number: DeviceInt,
+    stream: BufStream<serial::SystemPort>,
+    seq: DeviceInt,
 }
 
 impl SerialComms {
     pub fn new(port: &str) -> serial::Result<SerialComms> {
         let mut port = serial::open(port)?;
         port.configure(&SETTINGS)?;
-        port.set_timeout(Duration::from_secs(5))?;
+        port.set_timeout(Duration::from_secs(2))?;
 
         Ok(SerialComms {
-            port: port,
-            seq_number: 0,
+            stream: BufStream::new(port),
+            seq: 1,
         })
     }
 
     fn send_request(&mut self, req: SerialRequest) -> SerialResponse {
-        // Send request
-        self.port.write(unsafe {
-          &mem::transmute::<SerialRequest, [u8; SIZE_OF_REQUEST]>(req)
-        });
+        let text = format!("{} {} {}\n", req.seq, req.req_type, req.plant_id);
+        self.stream.write_all(text.as_bytes()).unwrap();
+        self.stream.flush().unwrap();
 
-        // Process response
-        let mut buf = [0_u8; SIZE_OF_RESPONSE];
-        self.port.read(&mut buf[..]).unwrap();
-
-        println!("Read: {}", self.port.read(&mut buf[..]).unwrap());
-        let response = unsafe {
-            mem::transmute::<[u8; SIZE_OF_RESPONSE], SerialResponse>(buf)
-        };
-
-        response
+        let mut buf = String::new();
+        self.stream.read_line(&mut buf);
+        json::decode(&buf).unwrap()
     }
 }
 
@@ -96,13 +86,13 @@ impl Comms for SerialComms {
         let PlantId(id) = plant_id;
 
         let req = SerialRequest {
-            seq_number: self.seq_number,
+            seq: self.seq,
             req_type: 0,
             plant_id: id as DeviceInt,
         };
 
-        self.seq_number += 1;
+        self.seq += 1;
 
-        self.send_request(req).to_moisture_level().unwrap()
+        self.send_request(req).to_moisture_level()
     }
 }

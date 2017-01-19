@@ -14,49 +14,29 @@ void setup() {
     Serial.begin(57600);
 }
 
-void respond_moisture(int seq, int plant_id) {
-    int moisture_level = analogRead(plant_id);
-
-    int response[RESPONSE_SIZE / sizeof(int)];
-    memset(response, 0, RESPONSE_SIZE);
-
-    response[0] = seq;
-    response[1] = plant_id;
-    response[2] = DATA_LEN_MOISTURE;
-    response[3] = moisture_level;
-
-    Serial.write((const uint8_t*)&response, RESPONSE_SIZE);
+void respond(int seq, int plant_id, char* text) {
+    char buffer[256];
+    sprintf(buffer, "{\"seq\":\"%i\",\"plant_id\":\"%i\",\"text\":\"%s\"}", seq, plant_id, text);
+    Serial.println(buffer);
+    Serial.flush();
 }
 
-void respond_error(int seq, const char* text, int text_len) {
-    int response[RESPONSE_SIZE / sizeof(int)];
-    memset(response, 0, RESPONSE_SIZE);
-
-    response[0] = seq;
-    response[1] = -1;
-    response[2] = text_len;
-    memcpy(&response[3], text, text_len);
-
-    Serial.write((const uint8_t*)&response, RESPONSE_SIZE);
+void respond_moisture(int seq, int plant_id) {
+    int moisture_level = analogRead(plant_id);
+    char buf[5];
+    respond(seq, plant_id, itoa(moisture_level, buf, 10));
 }
 
 void loop() {
-    // Serial packets are comprised of a sequence number request type and a plant ID so we need at least 2 bytes per response
-    if (Serial.available() >= 3) {
-        int seq_number = Serial.read();
-        int req_type = Serial.read();
-        int plant_id = Serial.read();
-        switch (req_type) {
-            case REQ_MOISTURE:
+    while (Serial.available() > 0) {
+        int seq_number = Serial.parseInt();
+
+        int req_type = Serial.parseInt();
+
+        int plant_id = Serial.parseInt();
+
+        if (Serial.read() == '\n') {
             respond_moisture(seq_number, plant_id);
-            break;
-
-            case REQ_TEMPERATURE:
-            respond_error(seq_number, REQ_TYPE_NOT_IMPLEMENTED, sizeof(REQ_TYPE_NOT_IMPLEMENTED));
-            break;
-
-            default:
-            respond_error(seq_number, REQ_TYPE_UNKNOWN, sizeof(REQ_TYPE_UNKNOWN));
         }
     }
 }

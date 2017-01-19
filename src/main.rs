@@ -1,6 +1,7 @@
 #![feature(plugin)]
 #![plugin(docopt_macros)]
 
+extern crate bufstream;
 extern crate byteorder;
 extern crate docopt;
 extern crate serial;
@@ -45,7 +46,7 @@ fn main() {
     let mut serial = comms::serial::SerialComms::new(&args.arg_port).unwrap();
 
     loop {
-        let id = comms::PlantId(4);
+        let id = comms::PlantId(0);
         let mlevel = serial.req_moisture(id);
 
         println!("{:?}", mlevel);
